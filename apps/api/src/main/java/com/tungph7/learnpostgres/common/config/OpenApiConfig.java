@@ -1,7 +1,5 @@
 package com.tungph7.learnpostgres.common.config;
 
-import java.util.List;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,7 +10,6 @@ import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
 import io.swagger.v3.oas.models.security.SecurityScheme;
-import io.swagger.v3.oas.models.servers.Server;
 
 @Configuration
 public class OpenApiConfig {
@@ -29,10 +26,9 @@ public class OpenApiConfig {
                 .version(version)
                 .contact(new Contact().name("TungPH").email("noreply@example.com"))
                 .license(new License().name("MIT").url("https://opensource.org/license/mit")))
-        .servers(
-            List.of(
-                new Server().url("http://localhost:8080").description("Local dev"),
-                new Server().url("https://api.example.com").description("Production")))
+        // No fixed servers: the api runs on its own host in each environment, and springdoc
+        // writes the server of the request when the document names none, so "Try it out" of
+        // Swagger UI calls the host it was opened on (PCV11-1).
         .components(
             new Components()
                 .addSecuritySchemes(

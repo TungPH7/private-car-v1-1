@@ -6,6 +6,18 @@
 	admin off
 	auto_https off
 	persist_config off
+	# Trust the X-Forwarded-* headers of the proxy in front, Caddy of the VPS, which reaches this container from a
+	# private address (PCV11-1, lesson of PCAR-6 in private-car-v1). Without it, Caddy here writes its own
+	# X-Forwarded-Proto, http, so the api, which reads the X-Forwarded-* headers (server.forward-headers-strategy
+	# native), sees http://<admin host> while the browser sends Origin https://<admin host> with every POST, PUT and
+	# DELETE: a cross-origin request from an origin it does not list, refused with 403 "Invalid CORS request". With it,
+	# the api sees the scheme and host the browser used, the request is same-origin on every environment, and no origin
+	# of the admin has to be listed in the api. The host passes as it is, since reverse_proxy keeps the Host header. The
+	# address of the client the api sees becomes that of the browser, which Caddy of the VPS writes, instead of the
+	# address of Caddy of the VPS.
+	servers {
+		trusted_proxies static private_ranges
+	}
 }
 
 :5173 {
