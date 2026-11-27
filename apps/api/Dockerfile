@@ -77,14 +77,16 @@ ENV JAVA_OPTS="-XX:MaxRAMPercentage=75.0 \
                -XX:+ExitOnOutOfMemoryError \
                -Djava.security.egd=file:/dev/./urandom"
 
-# Spring profile mặc định prod (có thể override qua docker run -e)
-ENV SPRING_PROFILES_ACTIVE=prod
+# One image runs in Development, Staging and Production: the Spring profile comes from SPRING_PROFILES_ACTIVE of the
+# secrets file of each environment on the VPS (env: of .ai-orchestrator/deploy.yaml), and is dev when unset (PCV11-1).
+# The app listens on PORT, 3001 when unset (server.port of application.yml).
+EXPOSE 3001
 
-EXPOSE 8080
-
-# Healthcheck — wget có sẵn ở alpine busybox
+# Healthcheck — wget có sẵn ở alpine busybox. It asks the port the app listens on, and /actuator/health, the one
+# health path SecurityConfig lets through without a login: /actuator/health/liveness answers 401, so Docker marked the
+# container unhealthy (lesson of private-car-v1). The smoke check of the deployer asks the same path.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health/liveness || exit 1
+    CMD wget --no-verbose --tries=1 --spider "http://localhost:${PORT:-3001}/actuator/health" || exit 1
 
 # tini PID 1 → graceful SIGTERM forwarding cho JVM
 ENTRYPOINT ["/sbin/tini", "--", "sh", "-c", "exec java $JAVA_OPTS org.springframework.boot.loader.launch.JarLauncher"]

@@ -26,6 +26,9 @@ export default defineConfig({
     env: { VITE_API_URL: 'http://localhost:3000' },
     coverage: {
       provider: 'v8',
+      // The default reporters plus lcov: the CI of ai-orchestrator reads coverage/lcov.info to measure the lines a PR
+      // changes.
+      reporter: ['text', 'html', 'clover', 'json', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
       // Exclude what is not meaningfully UNIT-testable so the % reflects tested
       // logic, not boilerplate: test files/utils, type decls, the entry, env +
