@@ -3,7 +3,10 @@ import { expect, test } from '@playwright/test';
 // E2E CÓ BACKEND (MSW-in-server, folder 24) — chứng minh render ASYNC Server Component của DAL, điều
 // unit/integration KHÔNG phủ được (async RSC chỉ E2E cover). Data đến từ store MSW chạy TRONG process
 // Next → toàn bộ đường BFF server-first (DAL `use cache` → http client → "backend") thực thi thật.
-test.describe('products (backend mock qua MSW-in-server)', () => {
+// @local: the MSW backend runs only in the Next process that Playwright starts with
+// E2E_API_MOCKING=1 (playwright.config.ts), never on an environment, so /ao-qa runs this on
+// that app too (PCV11-3).
+test.describe('products (backend mock qua MSW-in-server)', { tag: '@local' }, () => {
   test('render danh sách sản phẩm fetch phía SERVER', async ({ page }) => {
     await page.goto('/en/products');
     await expect(page.getByRole('heading', { level: 1, name: 'Products' })).toBeVisible();
