@@ -74,6 +74,13 @@ export default defineConfig({
     url: `${localUrl(app)}${app.health}`,
     reuseExistingServer: !process.env.CI && process.env.AO_PORT_OFFSET === undefined,
     timeout: 120_000,
-    env: { ...Object.fromEntries(Object.entries(app.env ?? {}).map(([name, value]) => [name, shift(value)])), [app.port.env]: String(portOf(app)) },
+    env: {
+      ...Object.fromEntries(Object.entries(app.env ?? {}).map(([name, value]) => [name, shift(value)])),
+      [app.port.env]: String(portOf(app)),
+      // The web app mocks its backend with MSW in its own process when this flag is on (apps/web/src/instrumentation.ts),
+      // which the tests tagged @local need. Only the servers started here for the E2E get it: not the env of the apps in
+      // project.yaml, which /ao-preview and the lanes use too (PCV11-3).
+      E2E_API_MOCKING: '1',
+    },
   })),
 });

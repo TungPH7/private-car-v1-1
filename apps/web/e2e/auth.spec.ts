@@ -12,10 +12,17 @@ async function login(page: Page): Promise<void> {
   await page.getByLabel('Password').fill('any-password'); // mock chấp nhận mọi mật khẩu
   // Nút submit tên "Sign in" (button) — phân biệt với link "Sign in" của AuthStatus (role khác).
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/en$/); // loginAction redirect về '/' theo locale hiện tại.
+  // loginAction redirect về '/' theo locale hiện tại.
+  // 20s, not the default 5s: the @local run starts a cold `next dev` (its dev script deletes
+  // .next), which compiles the Server Action on the first sign-in while the other workers load
+  // their pages (PCV11-3).
+  await expect(page).toHaveURL(/\/en$/, { timeout: 20_000 });
 }
 
-test.describe('auth: login, RBAC, logout', () => {
+// @local: the MSW backend runs only in the Next process that Playwright starts with
+// E2E_API_MOCKING=1 (playwright.config.ts), never on an environment, so /ao-qa runs this on
+// that app too (PCV11-3).
+test.describe('auth: login, RBAC, logout', { tag: '@local' }, () => {
   // Reset store MSW-in-server TRƯỚC mỗi test (và mỗi retry) → test xoá bên dưới luôn thấy `E2E Deletable`
   // dù Playwright dùng chung 1 server cho cả run (folder 25). `request` = APIRequestContext (dùng baseURL).
   test.beforeEach(async ({ request }) => {

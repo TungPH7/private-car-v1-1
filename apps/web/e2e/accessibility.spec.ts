@@ -28,11 +28,18 @@ test.describe('accessibility (axe, WCAG A/AA)', () => {
     expect(violations).toEqual([]);
   });
 
-  test('trang Products (mocked) không vi phạm — quét sau khi stream xong', async ({ page }) => {
-    await page.goto('/en/products');
-    // Chờ dynamic-hole (ProductResults) stream xong → axe quét CẢ cây đã render, không chỉ shell tĩnh.
-    await expect(page.getByText('E2E Widget')).toBeVisible();
-    const { violations } = await scan(page);
-    expect(violations).toEqual([]);
-  });
+  // @local: the MSW backend runs only in the Next process that Playwright starts with
+  // E2E_API_MOCKING=1 (playwright.config.ts), never on an environment, so /ao-qa runs this on
+  // that app too (PCV11-3).
+  test(
+    'trang Products (mocked) không vi phạm — quét sau khi stream xong',
+    { tag: '@local' },
+    async ({ page }) => {
+      await page.goto('/en/products');
+      // Chờ dynamic-hole (ProductResults) stream xong → axe quét CẢ cây đã render, không chỉ shell tĩnh.
+      await expect(page.getByText('E2E Widget')).toBeVisible();
+      const { violations } = await scan(page);
+      expect(violations).toEqual([]);
+    },
+  );
 });
