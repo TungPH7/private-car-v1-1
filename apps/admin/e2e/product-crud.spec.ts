@@ -30,15 +30,30 @@ const ADMIN_PROFILE = {
   },
 };
 
-async function setupMockedApp(page: Page, initial: MockProduct[]): Promise<void> {
+// The path under which the build calls the backend: VITE_API_URL defaults to /api (PCV11-1),
+// which the dev server here, or Caddy on an environment, sends to the API.
+const API_PATH = '/api';
+
+async function setupMockedApp(
+  page: Page,
+  baseURL: string | undefined,
+  initial: MockProduct[],
+): Promise<void> {
   const products = [...initial];
 
-  // Mock ONLY the backend (VITE_API_URL), anchored to its origin so these routes
-  // do NOT intercept SPA navigations to localhost — page.goto('/products') is a
-  // document request to the dev server, not an API call. (Mirrors VITE_API_URL.)
-  const profileUrl = 'https://ecom-nest.t2g.io.vn/profile';
-  const productsRe = /^https:\/\/ecom-nest\.t2g\.io\.vn\/products(\?.*)?$/;
-  const productItemRe = /^https:\/\/ecom-nest\.t2g\.io\.vn\/products\/[^/?]+$/;
+  // Mock ONLY the backend: /api/* on the origin of the app under test. Matching that path, these
+  // routes do NOT intercept SPA navigations such as page.goto('/products'), a document request to
+  // /products. The same routes work on the app started here and on Development, where any request
+  // they leave alone reaches the real API.
+  if (!baseURL) throw new Error('The admin project of playwright.config.ts sets no baseURL.');
+  const { origin } = new URL(baseURL);
+  const isApi = (url: URL, path: RegExp): boolean =>
+    url.origin === origin &&
+    url.pathname.startsWith(`${API_PATH}/`) &&
+    path.test(url.pathname.slice(API_PATH.length));
+  const isProfile = (url: URL): boolean => isApi(url, /^\/profile$/);
+  const isProducts = (url: URL): boolean => isApi(url, /^\/products$/);
+  const isProductItem = (url: URL): boolean => isApi(url, /^\/products\/[^/]+$/);
 
   // Seed the auth tokens BEFORE the app loads (string content → no DOM types
   // needed in this Node-typed spec). Keys match src/lib/auth/token-storage.ts.
@@ -47,10 +62,10 @@ async function setupMockedApp(page: Page, initial: MockProduct[]): Promise<void>
       "localStorage.setItem('tungph7.auth.access','e2e-access');localStorage.setItem('tungph7.auth.refresh','e2e-refresh');",
   });
 
-  await page.route(profileUrl, (route) => route.fulfill({ json: ADMIN_PROFILE }));
+  await page.route(isProfile, (route) => route.fulfill({ json: ADMIN_PROFILE }));
 
   // Collection: GET list + POST create.
-  await page.route(productsRe, async (route) => {
+  await page.route(isProducts, async (route) => {
     const method = route.request().method();
     if (method === 'GET') {
       await route.fulfill({ json: products });
@@ -67,7 +82,7 @@ async function setupMockedApp(page: Page, initial: MockProduct[]): Promise<void>
   });
 
   // Item: GET detail + PUT update + DELETE.
-  await page.route(productItemRe, async (route) => {
+  await page.route(isProductItem, async (route) => {
     const method = route.request().method();
     const id = route.request().url().split('/products/')[1]!.split('?')[0]!;
     const index = products.findIndex((product) => product.id === id);
@@ -94,8 +109,8 @@ async function setupMockedApp(page: Page, initial: MockProduct[]): Promise<void>
   });
 }
 
-test('Product CRUD end-to-end (create → read → update → delete)', async ({ page }) => {
-  await setupMockedApp(page, [
+test('Product CRUD end-to-end (create → read → update → delete)', async ({ page, baseURL }) => {
+  await setupMockedApp(page, baseURL, [
     { id: 'p-001', name: 'Seed Widget', priceCents: 1999, inStock: true },
   ]);
 
